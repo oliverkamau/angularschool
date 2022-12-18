@@ -1,4 +1,4 @@
-package com.app.schservice.auth;
+package com.app.schservice.auth.controller;
 
 import com.alibaba.fastjson.JSONObject;
 import com.app.schservice.config.JwtUtil;
@@ -11,6 +11,7 @@ import com.app.schservice.users.repository.UserRolesRepo;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -40,13 +41,27 @@ public class AuthController {
     @PostMapping("/authenticate")
     public JSONObject createAuthenticationToken(@RequestBody JSONObject authenticationRequest) throws Exception {
         try {
-            authenticationProvider.authenticate(new UsernamePasswordAuthenticationToken(authenticationRequest.getString("username"),authenticationRequest.getString("password")));
+            Authentication user =authenticationProvider.authenticate(new UsernamePasswordAuthenticationToken(authenticationRequest.getString("username"),authenticationRequest.getString("password")));
         } catch (BadCredentialsException e) {
             throw new Exception("Incorrect username or password", e);
         }
-        UserDetails userDetails= mySystemUserDetails.loadUserByUsername(authenticationRequest.getString("username"));
         User user=userRepo.findByUsername(authenticationRequest.getString("username"));
+        mySystemUserDetails.promptOTP(user);
+        JSONObject response = new JSONObject();
+        response.put("status","pending");
+        response.put("id",user.getUserId());
+        return response;
 
+
+
+
+
+    }
+    @PostMapping("/validateotp")
+    public JSONObject validateAuthenticationToken(@RequestBody JSONObject jsonObject) throws Exception {
+        User user=userRepo.findByUserId(Long.valueOf(jsonObject.getString("userId")));
+        mySystemUserDetails.verifyOTP(user,jsonObject.getString("otp"));
+        UserDetails userDetails= mySystemUserDetails.loadUserByUsername(user.getUsername());
 
         String realName=user.getUserFirstname().toUpperCase()+" "+user.getUserLastname().toUpperCase();
 
@@ -58,12 +73,12 @@ public class AuthController {
         }
 //        List<String> roles=userDetails.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList());
         JSONObject response = new JSONObject();
+        response.put("status","verified");
         response.put("roles",set);
         response.put("user",realName);
         response.put("id",user.getUserId());
         response.put("username",user.getUsername());
         response.put("token",jwt);
         return response;
-
     }
 }

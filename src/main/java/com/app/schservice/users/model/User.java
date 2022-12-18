@@ -58,6 +58,12 @@ public class User {
     @Column(name="user_teacher_ref")
     private Long userTeacherRef;
 
+    @Column(name="user_otp")
+    private String otp;
+
+    @Column(name = "otp_requested_time")
+    private Date otpRequestedTime;
+
     @ManyToOne
     @JoinColumn(name="user_type_id")
     private UserType userType;
